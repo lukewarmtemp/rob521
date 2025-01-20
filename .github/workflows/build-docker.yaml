@@ -2,7 +2,7 @@ name: build and publish image to docker hub
 on:
   push:
     branches:
-      - main
+      - lab01
     paths:
       - 'Dockerfile'
       - '.github/workflows/build-docker.yaml'

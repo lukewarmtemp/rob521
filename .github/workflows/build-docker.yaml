@@ -1,0 +1,21 @@
+name: build and publish image to docker hub
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/build-docker.yaml'
+
+jobs:
+  publish_images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: build image
+        run: docker build . -t lukewarmtemp/rob521:latest
+      - name: push image to docker hub
+        run: |
+          docker login -u lukewarmtemp -p ${{ secrets.DOCKER_HUB_TOKEN }}
+          docker push lukewarmtemp/rob498:latest

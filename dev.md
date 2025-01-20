@@ -20,7 +20,13 @@ $ sudo udermod -aG docker $USER
 ## Building Image
 
 ```
-$ docker build -t rob498_dev .
+docker build -t rob_dev .
+```
+
+## Tag Image
+
+```
+docker tag rob_dev:latest lukewarmtemp/rob521:lab01
 ```
 
 # Binding Directory
@@ -29,6 +35,6 @@ $ docker build -t rob498_dev .
 $ docker run -it --user ros --network=host --ipc=host \
 -v /tmp/.X11-unix:/tmp/.X11-unix:rw --env=DISPLAY \
 -e LIBGL_ALWAYS_SOFTWARE=1 \
--v ./source:/mysource rob498_dev
+-v ./catkin_ws:/catkin_ws lukewarmtemp/rob521:lab01
 ```
 Note: you can add optional argumenents such as `roscore` to execute the command in the container, and then immediately exit.

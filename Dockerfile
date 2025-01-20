@@ -21,11 +21,39 @@ RUN apt-get update && apt-get install -y \
   libgl1-mesa-dri \
   python3-colcon-argcomplete
 
+# Install text editors
+RUN apt-get update && apt-get install -y \
+  nano \
+  vim
+
+# Install ROS packages for TurtleBot
+RUN sudo apt-get install ros-noetic-joy ros-noetic-teleop-twist-joy \
+ros-noetic-teleop-twist-keyboard ros-noetic-laser-proc \
+ros-noetic-rgbd-launch ros-noetic-rosserial-arduino \
+ros-noetic-rosserial-python ros-noetic-rosserial-client \
+ros-noetic-rosserial-msgs ros-noetic-amcl ros-noetic-map-server \
+ros-noetic-move-base ros-noetic-urdf ros-noetic-xacro \
+ros-noetic-compressed-image-transport ros-noetic-rqt* \
+ros-noetic-rviz ros-noetic-gmapping \
+ros-noetic-navigation ros-noetic-interactive-markers -y
+
+# Install TurtleBot3 packages
+RUN sudo apt install ros-noetic-dynamixel-sdk -y
+RUN sudo apt install ros-noetic-turtlebot3-msgs -y
+RUN sudo apt install ros-noetic-turtlebot3 -y
+
 # Copy the entrypoint and bashrc scripts so we have 
 # our container's environment set up correctly
 COPY entrypoint.sh /entrypoint.sh
-COPY bashrc /home/${USERNAME}/.bashrc
+RUN echo 'source /opt/ros/noetic/setup.bash' >> /home/${USERNAME}/.bashrc
+RUN echo 'source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash' >> /home/${USERNAME}/.bashrc
+RUN echo 'source /opt/ros/noetic/setup.bash' >> /home/${USERNAME}/.bashrc
+RUN echo 'source /catkin_ws/devel/setup.bash' >> /home/${USERNAME}/.bashrc
 
 # Set up entrypoint and default command
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
 CMD ["bash"]
+
+USER root
+RUN echo 'export TURTLEBOT3_MODEL=waffle_pi' >> /home/${USERNAME}/.bashrc
+USER $USERNAME

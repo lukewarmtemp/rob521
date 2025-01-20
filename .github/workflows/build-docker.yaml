@@ -14,8 +14,8 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
       - name: build image
-        run: docker build . -t lukewarmtemp/rob521:latest
+        run: docker build . -t lukewarmtemp/rob521:lab01
       - name: push image to docker hub
         run: |
           docker login -u lukewarmtemp -p ${{ secrets.DOCKER_HUB_TOKEN }}
-          docker push lukewarmtemp/rob498:latest
+          docker push lukewarmtemp/rob521:lab01

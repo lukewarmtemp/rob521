@@ -12,7 +12,7 @@ $ sudo sh ./get-docker.sh
 ### 2. Add users to group
 ```
 $ sudo groupadd docker
-$ sudo udermod -aG docker $USER
+$ sudo usermod -aG docker $USER
 ```
 
 # Docker Image

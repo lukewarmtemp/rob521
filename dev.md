@@ -29,7 +29,7 @@ docker build -t rob_dev .
 docker tag rob_dev:latest lukewarmtemp/rob521:lab01
 ```
 
-# Binding Directory
+# Binding Directorydocker build -t rob_dev .
 
 ```
 $ docker run -it --user ros --network=host --ipc=host \

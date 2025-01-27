@@ -16,3 +16,9 @@ git submodule update --init --recursive
 ```
 ./docker.sh
 ```
+
+## 3. Compile the code
+
+```
+catkin_make
+```

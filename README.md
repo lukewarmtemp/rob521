@@ -22,3 +22,9 @@ git submodule update --init --recursive
 ```
 catkin_make
 ```
+
+## 4. Source environment variables
+```
+source ~/.bashrc
+source ./catkin_ws/devel/setup.bash
+```

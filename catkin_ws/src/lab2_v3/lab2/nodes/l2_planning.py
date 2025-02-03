@@ -120,13 +120,35 @@ class PathPlanner:
         #Convert a series of [x,y] points in the map to the indices for the corresponding cell in the occupancy map
         #point is a 2 by N matrix of points of interest
         print("TO DO: Implement a method to get the map cell the robot is currently occupying")
-        return 0
+
+        [x_0,y_0,theta] = self.map_settings_dict["origin"];
+
+        #rotate frame
+
+        num_points = point.shape[1]
+        resolution = self.map_settings_dict["resolution"]
+        x_coords = np.array(point[0,:] - x_0*np.ones((1,num_points)))/resolution
+        y_coords = np.array(point[1,:] - y_0*np.ones((1,num_points)))/resolution
+        x_coords = int(x_coords)
+        y_coords = int(y_coords)
+        
+        return [x_coords,y_coords]
 
     def points_to_robot_circle(self, points):
         #Convert a series of [x,y] points to robot map footprints for collision detection
         #Hint: The disk function is included to help you with this function
         print("TO DO: Implement a method to get the pixel locations of the robot path")
-        return [], []
+
+        robo_points = self.point_to_cell(points)
+        x_pts = np.array()
+        y_pts = np.array()
+        for robo_point in robo_points:
+            rr, cc = disk(robo_point, self.robot_radius/self.map_settings_dict["resolution"])
+            x_pts.stack(rr)
+            y_pts.stack(cc)
+
+        return x_pts, y_pts
+    
     #Note: If you have correctly completed all previous functions, then you should be able to create a working RRT function
 
     #RRT* specific functions

@@ -42,6 +42,27 @@ RUN sudo apt install ros-noetic-dynamixel-sdk -y
 RUN sudo apt install ros-noetic-turtlebot3-msgs -y
 RUN sudo apt install ros-noetic-turtlebot3 -y
 
+# Install necessary dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-yaml \
+    python3-pygame \
+    python3-matplotlib \
+    python3-skimage \
+    python3-scipy
+
+# Ensure that pygame uses the correct display (for headless use)
+RUN apt-get update && apt-get install -y \
+    libx11-dev \
+    libxrender-dev \
+    libxext-dev
+
+RUN pip install --upgrade scikit-image
+RUN apt-get update && apt-get install -y \
+    alsa-utils \
+    pulseaudio \
+    python3-tkinter
+
 # Copy the entrypoint and bashrc scripts so we have 
 # our container's environment set up correctly
 COPY entrypoint.sh /entrypoint.sh

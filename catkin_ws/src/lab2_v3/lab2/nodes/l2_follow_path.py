@@ -7,6 +7,7 @@ from scipy.linalg import block_diag
 from scipy.spatial.distance import cityblock
 import rospy
 import tf2_ros
+from l2_planning import PathPlanner
 
 # msgs
 from geometry_msgs.msg import TransformStamped, Twist, PoseStamped
@@ -89,7 +90,7 @@ class PathFollower():
         cur_dir = os.path.dirname(os.path.realpath(__file__))
 
         # to use the temp hardcoded paths above, switch the comment on the following two lines
-        self.path_tuples = np.load(os.path.join(cur_dir, 'path.npy')).T
+        self.path_tuples = np.load(os.path.join('/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/', 'myhal_coords.npy')).T
         # self.path_tuples = np.array(TEMP_HARDCODE_PATH)
 
         self.path = utils.se2_pose_list_to_path(self.path_tuples, 'map')
@@ -121,7 +122,7 @@ class PathFollower():
         while not rospy.is_shutdown():
             # timing for debugging...loop time should be less than 1/CONTROL_RATE
             tic = rospy.Time.now()
-
+            
             self.update_pose()
             self.check_and_update_goal()
 
@@ -130,27 +131,37 @@ class PathFollower():
             local_paths[0] = np.atleast_2d(self.pose_in_map_np).repeat(self.num_opts, axis=0)
 
             print("TO DO: Propogate the trajectory forward, storing the resulting points in local_paths!")
-            for t in range(1, self.horizon_timesteps + 1):
-                # propogate trajectory forward, assuming perfect control of velocity and no dynamic effects
-                pass
+            for i, [lin_vel, rot_vel] in enumerate(self.num_opts):
+                #propogate trajectory forward, assuming perfect control of velocity and no dynamic effects
+                traj = PathPlanner.trajectory_rollout(PathPlanner, vel_max = lin_vel, rot_vel = rot_vel,
+                                                       start_point=local_paths[0, i], end_point=self.path[0,self.cur_path_index+1]).T
+                local_paths[:, i] = traj
 
             # check all trajectory points for collisions
-            # first find the closest collision point in the map to each local path point
-            local_paths_pixels = (self.map_origin[:2] + local_paths[:, :, :2]) / self.map_resolution
-            valid_opts = range(self.num_opts)
-            local_paths_lowest_collision_dist = np.ones(self.num_opts) * 50
-
             print("TO DO: Check the points in local_path_pixels for collisions")
-            for opt in range(local_paths_pixels.shape[1]):
-                for timestep in range(local_paths_pixels.shape[0]):
-                    pass
-
-            # remove trajectories that were deemed to have collisions
-            print("TO DO: Remove trajectories with collisions!")
+            valid_opts = range(self.num_opts)
+            final_cost = np.zeros(valid_opts.size)
+            local_paths_lowest_collision_dist = np.ones(self.num_opts) * 50
+            cost = np.zeros(self.num_opts)
+            for i,path in enumerate(local_paths):
+                print("TO DO: Remove trajectories with collisions!")
+                path = (self.map_origin[:2] + path[:, :2]) / self.map_resolution
+                if PathPlanner.collision_check(PathPlanner, path[0,:], path[1,:]):
+                    valid_opts.remove(i)
+                    final_cost[i] = np.inf
+                    continue
+                else:
+                    for j, point in enumerate(path):
+                        #check for closest obstacle
+                        # first find the closest collision point in the map to each local path point
+                        obs_dist = np.linalg.norm(self.map_nonzero_idxes - point[:2], axis=1)
+                        print("TO DO: Calculate the final cost and choose the best control option!")
+                        local_paths_lowest_collision_dist[i] += obs_dist
+                        dist_traveled += np.linalg.norm(path[j] - path[j-1])
+                    final_cost[i] = 1/(local_paths_lowest_collision_dist[i] + 0.001) - dist_traveled * 0.1
+                pass 
 
             # calculate final cost and choose best option
-            print("TO DO: Calculate the final cost and choose the best control option!")
-            final_cost = np.zeros(self.num_opts)
             if final_cost.size == 0:  # hardcoded recovery if all options have collision
                 control = [-.1, 0]
             else:
@@ -162,8 +173,8 @@ class PathFollower():
             self.cmd_pub.publish(utils.unicyle_vel_to_twist(control))
 
             # uncomment out for debugging if necessary
-            # print("Selected control: {control}, Loop time: {time}, Max time: {max_time}".format(
-            #     control=control, time=(rospy.Time.now() - tic).to_sec(), max_time=1/CONTROL_RATE))
+            print("Selected control: {control}, Loop time: {time}, Max time: {max_time}".format(
+                control=control, time=(rospy.Time.now() - tic).to_sec(), max_time=1/CONTROL_RATE))
 
             self.rate.sleep()
 

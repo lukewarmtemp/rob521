@@ -236,14 +236,17 @@ def plot_path_with_background(background_image, path):
 ######################################################
 
 def load_map(filename):
-    im = mpimg.imread("../maps/" + filename)
+    import os
+    print(os.getcwd())
+    print(filename)
+    im = mpimg.imread("/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/" + filename)
     if len(im.shape) > 2:
         im = im[:,:,0]
     im_np = np.array(im) 
     return im_np
 
 def load_map_yaml(filename):
-    with open("../maps/" + filename, "r") as stream:
+    with open("/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/" + filename, "r") as stream:
             map_settings_dict = yaml.safe_load(stream)
     return map_settings_dict
 
@@ -382,25 +385,19 @@ class PathPlanner:
         return included_points
 
     # first performs all turning steps, then all walking steps, returns floats, unicycle model
-    def trajectory_rollout(self, vel, rot_vel, init_pose, time_lin, time_rot):
+    def trajectory_rollout(self, vel, rot_vel, start_point, end_point):
         # create a blank array for the trajectory start and load in the first node
-        res = self.map_settings_dict["resolution"]
-        trajectory = np.zeros((3, time_rot+time_lin+1))
-        trajectory[:, 0] = init_pose.point.flatten()
-        # for the unicycle model, simulate the steps of turning
-        v, w = 0, rot_vel
-        for step in range(1, time_rot+1, 1):
-            x, y, theta = trajectory[:, step-1]
-            x_dot, y_dot, theta_dot = v*math.cos(theta), v*math.sin(theta), w
-            trajectory[:, step] = [x+x_dot, y+y_dot, theta+theta_dot]
-        # for the unicycle model, simulate the steps of forwards walking
-        v, w = vel, 0
-        for step in range(time_rot+1, time_rot+time_lin+1, 1):
-            x, y, theta = trajectory[:, step-1]
-            x_dot, y_dot, theta_dot = v*math.cos(theta), v*math.sin(theta), w
-            trajectory[:, step] = [x+x_dot, y+y_dot, theta+theta_dot]
-        # return the model as floats (eventually needs to be ints for (x, y))
-        return trajectory[:, 1:]
+        traj = np.zeros((3, self.num_substeps))
+        traj[:,0] = start_point.flatten()
+        for i in range(1, self.num_substeps):
+            A = np.array([[np.cos(traj[2, i-1]), 0], 
+                        [np.sin(traj[2, i-1]), 0], 
+                        [0, 1]])
+            q_dot = A @ np.array([vel, rot_vel])
+            traj[:,i] = traj[:,i-1] + self.timestep * q_dot
+            if np.linalg.norm(traj[0:2] - end_point) < self.stopping_dist:
+                break
+        return traj[:, 1:]
 
     # using a beginning (x, y, theta) and ending (x, y), determine walking steps required
     def robot_controller(self, node_i, point_s):
@@ -422,9 +419,9 @@ class PathPlanner:
     # simulates moving from node i to node s using a holonomic model
     def simulate_trajectory(self, node_i, point_s):
         # get the velocities
-        vel_max, rot_vel_max, time_lin, time_rot = self.robot_controller(node_i, point_s)
+        vel_max, rot_vel_max = self.robot_controller(node_i, point_s)
         # simulate trying to get to that point
-        robot_traj = self.trajectory_rollout(vel_max, rot_vel_max, node_i, time_lin, time_rot)
+        robot_traj = self.trajectory_rollout(vel_max, rot_vel_max, node_i, point_s)
         return robot_traj
 
     # samples a point from the world (slightly guided)
@@ -918,8 +915,8 @@ def main():
     # goal_pix = np.array([[1550], [1550]])
     # first_node = Node(np.array([[50],[50],[0]]), -1, 0)
     # stopping_dist = 0.5 #m
-    # rrt_path = "/Users/felicialiu/Desktop/DEV/ROB521_MobileRobotics/LAB2/lab2/maps/simple_map_coords.npy"
-    # rrt_star_path = "/Users/felicialiu/Desktop/DEV/ROB521_MobileRobotics/LAB2/lab2/maps/simple_map_rrtstar_coords.npy"
+    # rrt_path = "./catkin_ws/src/lab2_v3/lab2/maps/simple_map_coords.npy"
+    # rrt_star_path = "./catkin_ws/src/lab2_v3/lab2/maps/maps/simple_map_rrtstar_coords.npy"
 
     # # map information (random seed 42)
     # map_filename = "willowgarageworld_05res.png"
@@ -932,14 +929,14 @@ def main():
     # rrt_star_path = "/Users/felicialiu/Desktop/DEV/ROB521_MobileRobotics/LAB2/lab2/maps/willowgarageworld_05res_rrtstar_coords.npy"
 
     # # map information (random seed 19)
-    # map_filename = "myhal.png"
-    # map_setings_filename = "myhal.yaml"
-    # # robot information
-    # goal_pix = np.array([[153], [6]])
-    # first_node = Node(np.array([[6],[43],[0]]), -1, 0)
-    # stopping_dist = 0.2 #m
-    # rrt_path = "/Users/felicialiu/Desktop/DEV/ROB521_MobileRobotics/LAB2/lab2/maps/myhal_coords.npy"
-    # rrt_star_path = "/Users/felicialiu/Desktop/DEV/ROB521_MobileRobotics/LAB2/lab2/maps/myhal_rrtstar_coords.npy"
+    map_filename = "myhal.png"
+    map_setings_filename = "myhal.yaml"
+    # robot information
+    goal_pix = np.array([[153], [6]])
+    first_node = Node(np.array([[6],[43],[0]]), -1, 0)
+    stopping_dist = 0.2 #m
+    rrt_path = "/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/myhal_coords.npy"
+    rrt_star_path = "/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/myhal_rrtstar_coords.npy"
 
     ########################################################
 
@@ -948,17 +945,17 @@ def main():
 
     ########################################################
 
-    # nodes = path_planner.rrt_planning()
-    # node_path_metric = path_planner.recover_path()
-    # plot_path_with_background(path_planner.occupancy_map, node_path_metric)
-    # np.save("shortest_path.npy", node_path_metric)
+    nodes = path_planner.rrt_planning()
+    node_path_metric = path_planner.recover_path()
+    plot_path_with_background(path_planner.occupancy_map, node_path_metric)
+    np.save(rrt_path, node_path_metric)
 
     ########################################################
 
-    # nodes, goal_id = path_planner.rrt_star_planning()
-    # node_path_metric = path_planner.recover_path(goal_id)
-    # plot_path_with_background(path_planner.occupancy_map, node_path_metric)
-    # np.save("shortest_path.npy", node_path_metric)
+    nodes, goal_id = path_planner.rrt_star_planning()
+    node_path_metric = path_planner.recover_path(goal_id)
+    plot_path_with_background(path_planner.occupancy_map, node_path_metric)
+    np.save(rrt_star_path, node_path_metric)
 
     ########################################################
 

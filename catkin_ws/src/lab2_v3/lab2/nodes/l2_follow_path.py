@@ -90,8 +90,8 @@ class PathFollower():
         cur_dir = os.path.dirname(os.path.realpath(__file__))
 
         # to use the temp hardcoded paths above, switch the comment on the following two lines
-        self.path_tuples = np.load(os.path.join('/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/', 'myhal_coords.npy')).T
-        #self.path_tuples = np.load(os.path.join(cur_dir, PATH_NAME)).T
+        # self.path_tuples = np.load(os.path.join('/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/', 'myhal_coords.npy')).T
+        self.path_tuples = np.load(os.path.join(cur_dir, PATH_NAME)).T
         # self.path_tuples = np.array(TEMP_HARDCODE_PATH)
 
         self.path = utils.se2_pose_list_to_path(self.path_tuples, 'map')

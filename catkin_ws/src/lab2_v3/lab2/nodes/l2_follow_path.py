@@ -91,6 +91,7 @@ class PathFollower():
 
         # to use the temp hardcoded paths above, switch the comment on the following two lines
         self.path_tuples = np.load(os.path.join('/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/', 'myhal_coords.npy')).T
+        #self.path_tuples = np.load(os.path.join(cur_dir, PATH_NAME)).T
         # self.path_tuples = np.array(TEMP_HARDCODE_PATH)
 
         self.path = utils.se2_pose_list_to_path(self.path_tuples, 'map')
@@ -131,23 +132,36 @@ class PathFollower():
             local_paths[0] = np.atleast_2d(self.pose_in_map_np).repeat(self.num_opts, axis=0)
 
             print("TO DO: Propogate the trajectory forward, storing the resulting points in local_paths!")
-            for i, [lin_vel, rot_vel] in enumerate(self.num_opts):
+            start_pt = np.atleast_2d(self.pose_in_map_np)
+            #convert to pixels
+            # start_pt[0,:2] = (self.map_origin[:2] + start_pt[:, :2]) / self.map_resolution
+            
+            for i, vel in enumerate(self.all_opts_scaled):
+                end_pt =  local_paths[0,i,2]
+                lin_vel, rot_vel = vel[0], vel[1]
                 #propogate trajectory forward, assuming perfect control of velocity and no dynamic effects
-                traj = PathPlanner.trajectory_rollout(PathPlanner, vel_max = lin_vel, rot_vel = rot_vel,
-                                                       start_point=local_paths[0, i], end_point=self.path[0,self.cur_path_index+1]).T
-                local_paths[:, i] = traj
+                traj = PathPlanner.trajectory_rollout(PathPlanner, lin_vel, rot_vel,
+                                                       start_point=start_pt, 
+                                                       end_point=end_pt,
+                                                       num_steps = self.horizon_timesteps+1,
+                                                       timestep = CONTROL_HORIZON,
+                                                       stopping_dist=0.1).T
+                local_paths[1:, i,:] = traj
 
             # check all trajectory points for collisions
-            print("TO DO: Check the points in local_path_pixels for collisions")
-            valid_opts = range(self.num_opts)
-            final_cost = np.zeros(valid_opts.size)
+            #print("TO DO: Check the points in local_path_pixels for collisions")
+            valid_opts = np.array(range(np.shape(local_paths)[0]))
+            final_cost = np.zeros(np.shape(local_paths)[0])
             local_paths_lowest_collision_dist = np.ones(self.num_opts) * 50
             cost = np.zeros(self.num_opts)
             for i,path in enumerate(local_paths):
-                print("TO DO: Remove trajectories with collisions!")
+                #print("TO DO: Remove trajectories with collisions!")
                 path = (self.map_origin[:2] + path[:, :2]) / self.map_resolution
-                if PathPlanner.collision_check(PathPlanner, path[0,:], path[1,:]):
-                    valid_opts.remove(i)
+                if PathPlanner.collision_check(PathPlanner, 
+                                               path[0,0], path[0,1],0, 
+                                               self.map_np, 
+                                               scaled_rad= COLLISION_RADIUS/self.map_resolution):
+                    valid_opts[i] = -1
                     final_cost[i] = np.inf
                     continue
                 else:

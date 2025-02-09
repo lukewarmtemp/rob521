@@ -385,17 +385,23 @@ class PathPlanner:
         return included_points
 
     # first performs all turning steps, then all walking steps, returns floats, unicycle model
-    def trajectory_rollout(self, vel, rot_vel, start_point, end_point):
+    def trajectory_rollout(self, vel, rot_vel, start_point, end_point, num_steps = None, timestep = None, stopping_dist = None):
         # create a blank array for the trajectory start and load in the first node
-        traj = np.zeros((3, self.num_substeps))
+        if num_steps == None:
+            num_steps = self.num_substeps
+        if timestep == None:
+            timestep = self.timestep
+        if stopping_dist == None:
+            stopping_dist = self.stopping_dist
+        traj = np.zeros((3, num_steps))
         traj[:,0] = start_point.flatten()
-        for i in range(1, self.num_substeps):
+        for i in range(1, num_steps):
             A = np.array([[np.cos(traj[2, i-1]), 0], 
                         [np.sin(traj[2, i-1]), 0], 
                         [0, 1]])
             q_dot = A @ np.array([vel, rot_vel])
-            traj[:,i] = traj[:,i-1] + self.timestep * q_dot
-            if np.linalg.norm(traj[0:2] - end_point) < self.stopping_dist:
+            traj[:,i] = traj[:,i-1] + timestep * q_dot
+            if np.linalg.norm(traj[0:2] - end_point) < stopping_dist:
                 break
         return traj[:, 1:]
 
@@ -520,19 +526,26 @@ class PathPlanner:
     ########################################################
 
     # for each point along a trajectory, we check the viability, if they all pass, then we're good!
-    def collision_check(self, x, y, theta):
+    def collision_check(self, x, y, theta, input_map = None, scaled_rad = None):
         # if this point on the path goes off the page, we're done
-        if not (0 <= x <= self.map_shape[1]-1 and 0 <= y <= self.map_shape[0]-1): return True
+        if input_map.all() == None:
+            input_map = self.occupancy_map
+            map_shape = self.map_shape
+        else:
+            map_shape = input_map.shape
+        if scaled_rad == None:
+            scaled_rad = self.scaled_rad
+        if not (0 <= x <= map_shape[1]-1 and 0 <= y <= map_shape[0]-1): return True
         # if any of the surrounding points are off the edge, we're also done
-        included_points = self.points_to_robot_circle(np.array([x, y]), self.scaled_rad)
-        out_of_range_x = np.any((included_points[0, :] < 0) | (included_points[0, :] >= self.map_shape[1]-1))
-        out_of_range_y = np.any((included_points[1, :] < 0) | (included_points[1, :] >= self.map_shape[0]-1))
+        included_points = self.points_to_robot_circle(PathPlanner,points=np.array([x, y]), scaled_rad=scaled_rad)
+        out_of_range_x = np.any((included_points[0, :] < 0) | (included_points[0, :] >= map_shape[1]-1))
+        out_of_range_y = np.any((included_points[1, :] < 0) | (included_points[1, :] >= map_shape[0]-1))
         out_of_range = out_of_range_x or out_of_range_y
         if out_of_range: return True
         # if any of the surrounding points are in an obstacle, we're also done
         for mini_index in range(included_points.shape[1]):
             test_x, test_y = included_points[:, mini_index].flatten()
-            if self.occupancy_map[test_y, test_x] == 0: return True
+            if input_map[test_y, test_x] == 0: return True
         # only if we make it here is the point safe to add as a next 
         return False
 

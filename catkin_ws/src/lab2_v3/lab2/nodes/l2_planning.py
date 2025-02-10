@@ -542,7 +542,7 @@ class PathPlanner:
     ########################################################
 
     # for each point along a trajectory, we check the viability, if they all pass, then we're good!
-    def collision_check(self, x, y, theta, input_map = None, scaled_rad = None):
+    def collision_check(self, x, y, theta = None, input_map = None, scaled_rad = None):
         # if this point on the path goes off the page, we're done
         if input_map.all() == None:
             input_map = self.occupancy_map
@@ -551,17 +551,23 @@ class PathPlanner:
             map_shape = input_map.shape
         if scaled_rad == None:
             scaled_rad = self.scaled_rad
-        if not (0 <= x <= map_shape[1]-1 and 0 <= y <= map_shape[0]-1): return True
+        if not (0 <= x <= map_shape[1]-1 and 0 <= y <= map_shape[0]-1): 
+            # print('A')
+            return True
         # if any of the surrounding points are off the edge, we're also done
         included_points = self.points_to_robot_circle(PathPlanner,points=np.array([x, y]), scaled_rad=scaled_rad)
         out_of_range_x = np.any((included_points[0, :] < 0) | (included_points[0, :] >= map_shape[1]-1))
         out_of_range_y = np.any((included_points[1, :] < 0) | (included_points[1, :] >= map_shape[0]-1))
         out_of_range = out_of_range_x or out_of_range_y
-        if out_of_range: return True
+        if out_of_range: 
+            # print('B')
+            return True
         # if any of the surrounding points are in an obstacle, we're also done
         for mini_index in range(included_points.shape[1]):
             test_x, test_y = included_points[:, mini_index].flatten()
-            if input_map[test_y, test_x] == 0: return True
+            if input_map[test_y, test_x] == 1:
+                print('C')
+                return True
         # only if we make it here is the point safe to add as a next 
         return False
 

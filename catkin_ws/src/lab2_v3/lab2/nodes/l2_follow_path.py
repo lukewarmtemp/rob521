@@ -96,10 +96,21 @@ class PathFollower():
         # self.path_tuples = np.array(TEMP_HARDCODE_PATH)
         offset_x = self.path_tuples[0][0]
         offset_y = self.path_tuples[0][1]
+        # print(offset_x/self.map_resolution, offset_y/self.map_resolution)
+        # print('WAITING FOR MAP')
         for i in range(len(self.path_tuples)):
             self.path_tuples[i][0] -= offset_x
             self.path_tuples[i][1] -= offset_y
-        
+
+        self.map_offset = np.array([offset_x, offset_y])/self.map_resolution
+        # append np array of 1s of size (offset) to self.map_np
+        # print(self.map_np.shape)
+        added_1 = np.ones((np.int32(offset_y/self.map_resolution), self.map_np.shape[1]))
+        self.map_np = np.append(added_1, self.map_np, axis=0)
+        added_2 = np.ones((self.map_np.shape[0], np.int32(offset_x/self.map_resolution)))
+        self.map_np = np.append(added_2, self.map_np, axis=1)
+        # print(self.map_np.shape)
+        # self.map_np = self.map_np
 
         self.path = utils.se2_pose_list_to_path(self.path_tuples, 'map')
         self.global_path_pub.publish(self.path)
@@ -172,7 +183,7 @@ class PathFollower():
                 collision = False
                 for point in path:
                     # print(point)
-                    tmp_path = (self.map_origin[:2] + point[:2]) / self.map_resolution
+                    tmp_path = (self.map_origin[:2] + point[:2]) / self.map_resolution - self.map_offset
                     # converted_x = (point[0] - self.map_origin[0]) / self.map_resolution
                     # converted_y = (self.map_origin[1] - point[1] + self.map_np.shape[2]) / self.map_resolution
                     # print(self.map_np.shape)

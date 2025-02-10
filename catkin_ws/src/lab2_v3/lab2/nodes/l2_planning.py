@@ -560,13 +560,13 @@ class PathPlanner:
         out_of_range_y = np.any((included_points[1, :] < 0) | (included_points[1, :] >= map_shape[0]-1))
         out_of_range = out_of_range_x or out_of_range_y
         if out_of_range: 
-            # print('B')
+            # print('B');
             return True
         # if any of the surrounding points are in an obstacle, we're also done
         for mini_index in range(included_points.shape[1]):
             test_x, test_y = included_points[:, mini_index].flatten()
-            if input_map[test_y, test_x] == 1:
-                print('C')
+            if input_map[test_y, test_x] == 0:
+                # print('C')
                 return True
         # only if we make it here is the point safe to add as a next 
         return False

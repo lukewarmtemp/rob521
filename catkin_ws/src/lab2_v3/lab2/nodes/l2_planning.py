@@ -239,14 +239,14 @@ def load_map(filename):
     import os
     print(os.getcwd())
     print(filename)
-    im = mpimg.imread("/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/" + filename)
+    im = mpimg.imread("../maps/" + filename)
     if len(im.shape) > 2:
         im = im[:,:,0]
     im_np = np.array(im) 
     return im_np
 
 def load_map_yaml(filename):
-    with open("/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/" + filename, "r") as stream:
+    with open("../maps/" + filename, "r") as stream:
             map_settings_dict = yaml.safe_load(stream)
     return map_settings_dict
 
@@ -401,9 +401,25 @@ class PathPlanner:
                         [0, 1]])
             q_dot = A @ np.array([vel, rot_vel])
             traj[:,i] = traj[:,i-1] + timestep * q_dot
-            if np.linalg.norm(traj[0:2] - end_point) < stopping_dist:
-                break
+            if traj[2,i] > np.pi:
+                traj[2,i] -= 2 * np.pi
+            if traj[2,i] < -np.pi:
+                traj[2,i] += 2 * np.pi
+            # if np.linalg.norm(traj[0:2] - end_point) < stopping_dist:
+            #     break
         return traj[:, 1:]
+    
+    # def trajectory_rollout(self, vel, rot_vel, start_point, end_point, num_steps = None, timestep = None, stopping_dist = None):
+    #     trajectory = np.zeros((3, num_steps+1))
+    #     cur_pose = start_point
+    #     trajectory[:,0] = cur_pose
+    #     del_time = timestep / num_steps
+    #     for steps in range(num_steps):
+    #         x_dot = vel * np.cos(trajectory[2,steps])
+    #         y_dot = vel * np.sin(trajectory[2,steps])
+    #         theta_dot = rot_vel
+    #         trajectory[:,steps+1] = trajectory[:,steps] + np.array([x_dot, y_dot, theta_dot]) * del_time
+    #     return trajectory[:,2:]
 
     # using a beginning (x, y, theta) and ending (x, y), determine walking steps required
     def robot_controller(self, node_i, point_s):
@@ -425,7 +441,7 @@ class PathPlanner:
     # simulates moving from node i to node s using a holonomic model
     def simulate_trajectory(self, node_i, point_s):
         # get the velocities
-        vel_max, rot_vel_max = self.robot_controller(node_i, point_s)
+        vel_max, rot_vel_max, _, _ = self.robot_controller(node_i, point_s)
         # simulate trying to get to that point
         robot_traj = self.trajectory_rollout(vel_max, rot_vel_max, node_i, point_s)
         return robot_traj
@@ -948,8 +964,8 @@ def main():
     goal_pix = np.array([[153], [6]])
     first_node = Node(np.array([[6],[43],[0]]), -1, 0)
     stopping_dist = 0.2 #m
-    rrt_path = "/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/myhal_coords.npy"
-    rrt_star_path = "/home/rohan/Documents/521/rob521/catkin_ws/src/lab2_v3/lab2/maps/myhal_rrtstar_coords.npy"
+    rrt_path = "../maps/myhal_coords.npy"
+    rrt_star_path = "../maps/myhal_rrtstar_coords.npy"
 
     ########################################################
 

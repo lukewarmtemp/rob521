@@ -233,7 +233,7 @@ class PathFollower():
                     # paths that bring us to the right final orientation are better
                     # however, we only care about this if we are close to the goal
                     for j, point in enumerate(path):
-                        final_cost[i] += np.abs(self.cur_goal[2] - point[2]) * rot_weight * np.exp(-50*np.linalg.norm(self.cur_goal[:2] - point[:2]))
+                        final_cost[i] += np.abs(self.cur_goal[2] - point[2]) * rot_weight * np.exp(-75*np.linalg.norm(self.cur_goal[:2] - point[:2]))
 
             # calculate final cost and choose best option
             if no_path:  # hardcoded recovery if all options have collision

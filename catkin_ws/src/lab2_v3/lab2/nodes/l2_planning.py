@@ -565,8 +565,8 @@ class PathPlanner:
         # if any of the surrounding points are in an obstacle, we're also done
         for mini_index in range(included_points.shape[1]):
             test_x, test_y = included_points[:, mini_index].flatten()
-            if input_map[test_y, test_x] == 0:
-                # print('C')
+            if input_map[test_y, test_x] == 100: 
+                print(test_x, test_y)
                 return True
         # only if we make it here is the point safe to add as a next 
         return False

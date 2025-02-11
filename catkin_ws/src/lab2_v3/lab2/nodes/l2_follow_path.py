@@ -14,6 +14,8 @@ from geometry_msgs.msg import TransformStamped, Twist, PoseStamped
 from nav_msgs.msg import Path, Odometry, OccupancyGrid
 from visualization_msgs.msg import Marker
 
+from matplotlib import pyplot as plt
+
 # ros and se2 conversion utils
 import utils
 
@@ -64,6 +66,9 @@ class PathFollower():
         print(self.map_origin)
         self.map_nonzero_idxes = np.argwhere(self.map_np)
         # print(map)
+        # self.map_np = self.map_np.T
+        # self.map_np = np.flip(self.map_np, 0)
+        # self.map_np = np.flip(self.map_np, 1)
 
 
         # collisions
@@ -105,10 +110,12 @@ class PathFollower():
         self.map_offset = np.array([offset_x, offset_y])/self.map_resolution
         # append np array of 1s of size (offset) to self.map_np
         # print(self.map_np.shape)
-        added_1 = np.ones((np.int32(offset_y/self.map_resolution), self.map_np.shape[1]))
-        self.map_np = np.append(added_1, self.map_np, axis=0)
-        added_2 = np.ones((self.map_np.shape[0], np.int32(offset_x/self.map_resolution)))
-        self.map_np = np.append(added_2, self.map_np, axis=1)
+
+        # added_1 = np.ones((np.int32(offset_y/self.map_resolution), self.map_np.shape[1]))
+        # self.map_np = np.append(added_1, self.map_np, axis=0)
+        # added_2 = np.ones((self.map_np.shape[0], np.int32(offset_x/self.map_resolution)))
+        # self.map_np = np.append(added_2, self.map_np, axis=1)
+
         # print(self.map_np.shape)
         # self.map_np = self.map_np
 
@@ -138,9 +145,22 @@ class PathFollower():
         self.follow_path()
 
     def follow_path(self):
+        # plt.figure(figsize=(8, 8))
+        # plt.imshow(self.map_np, cmap='gray', origin='upper')
+        # plt.plot(self.cur_goal[0], self.cur_goal[1], 'ro')
+        # plt.colorbar(label="Occupancy Value")
+        # plt.title("Occupancy Grid Map")
+        # plt.xlabel("X-axis (Columns)")
+        # plt.ylabel("Y-axis (Rows)")
+        # plt.grid(False)  # Disable grid lines for a cleaner image
+        # plt.gca().invert_yaxis()
+        # plt.show()
         while not rospy.is_shutdown():
             # timing for debugging...loop time should be less than 1/CONTROL_RATE
             tic = rospy.Time.now()
+
+            # print('current position: ', self.pose_in_map_np)
+            # print('current occupancy: ', self.map_np[int(self.pos_in_map_pix[0]), int(self.pos_in_map_pix[1])])
             
             self.update_pose()
             self.check_and_update_goal()
@@ -183,13 +203,16 @@ class PathFollower():
                 collision = False
                 for point in path:
                     # print(point)
-                    tmp_path = (self.map_origin[:2] + point[:2]) / self.map_resolution - self.map_offset
+                    # tmp_path = (self.map_origin[:2] + point[:2]) / self.map_resolution - self.map_offset
+                    tmp_path = (self.map_origin[:2] + point[:2]) / self.map_resolution
+                    if self.map_np[int(tmp_path[1]), int(tmp_path[0])] == 100:
+                        print('COLLISION')
                     # converted_x = (point[0] - self.map_origin[0]) / self.map_resolution
                     # converted_y = (self.map_origin[1] - point[1] + self.map_np.shape[2]) / self.map_resolution
                     # print(self.map_np.shape)
                     # print(tmp_path)
                     if PathPlanner.collision_check(PathPlanner, 
-                                                int(tmp_path[0]), int(tmp_path[1]), 0, 
+                                                int(tmp_path[0]), int(tmp_path[1]), 0,
                                                 self.map_np, 
                                                 scaled_rad= COLLISION_RADIUS/self.map_resolution):
                         # valid_opts[i] = -1
@@ -215,6 +238,7 @@ class PathFollower():
             # calculate final cost and choose best option
             if no_path:  # hardcoded recovery if all options have collision
                 control = [-.1, 0]
+                # control = [0, 0]
             else:
                 best_opt = valid_opts[final_cost.argmin()]
                 # control = self.all_opts[best_opt]
@@ -251,6 +275,7 @@ class PathFollower():
         rot_dist_from_goal = min(np.pi * 2 - abs_angle_diff, abs_angle_diff)
         print('cur goal:', self.cur_goal)
         print('pose:', self.pose_in_map_np)
+
         if dist_from_goal < TRANS_GOAL_TOL and rot_dist_from_goal < ROT_GOAL_TOL:
             rospy.loginfo("Goal {goal} at {pose} complete.".format(
                     goal=self.cur_path_index, pose=self.cur_goal))

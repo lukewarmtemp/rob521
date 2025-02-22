@@ -8,6 +8,7 @@ from scipy.spatial.distance import cityblock
 import rospy
 import tf2_ros
 from l2_planning import PathPlanner, Node
+from skimage.draw import disk
 
 # msgs
 from geometry_msgs.msg import TransformStamped, Twist, PoseStamped
@@ -42,21 +43,21 @@ TEMP_HARDCODE_PATH = [[2, -.5, 0], [2.4, -1, -np.pi/2], [2.45, -3.5, -np.pi/2], 
 
 class PathFollower():
     def __init__(self):
-        map_filename = "willowgarageworld_05res.png"
-        map_setings_filename = "willowgarageworld_05res.yaml"
-        # robot information
-        goal_pix = np.array([[1250], [1500]])
-        first_node = Node(np.array([[420],[615],[0]]), -1, 0)
-        stopping_dist = 0.5 #m
-
-        # map_filename = "myhal.png"
-        # map_setings_filename = "myhal.yaml"
+        # map_filename = "willowgarageworld_05res.png"
+        # map_setings_filename = "willowgarageworld_05res.yaml"
         # # robot information
-        # goal_pix = np.array([[153], [6]])
-        # first_node = Node(np.array([[6],[43],[0]]), -1, 0)
-        # stopping_dist = 0.2 #m
-        # rrt_path = "../maps/myhal_coords.npy"
-        # rrt_star_path = "../maps/myhal_rrtstar_coords.npy"
+        # goal_pix = np.array([[1250], [1500]])
+        # first_node = Node(np.array([[420],[615],[0]]), -1, 0)
+        # stopping_dist = 0.5 #m
+
+        map_filename = "myhal.png"
+        map_setings_filename = "myhal.yaml"
+        # robot information
+        goal_pix = np.array([[153], [6]])
+        first_node = Node(np.array([[6],[43],[0]]), -1, 0)
+        stopping_dist = 0.2 #m
+        rrt_path = "../maps/myhal_coords.npy"
+        rrt_star_path = "../maps/myhal_rrtstar_coords.npy"
 
         self.path_planner = PathPlanner(map_filename, map_setings_filename, goal_pix, first_node, stopping_dist)
         # time full path
@@ -114,8 +115,8 @@ class PathFollower():
         cur_dir = os.path.dirname(os.path.realpath(__file__))
 
         # to use the temp hardcoded paths above, switch the comment on the following two lines
-        self.path_tuples = np.load(os.path.join('../maps/', 'willowgarageworld_05res_rrtstar_coords_ori.npy')).T
-        # self.path_tuples = np.load(os.path.join('../maps/', 'myhal_newgoal_rrtstar_coords_ori.npy')).T
+        # self.path_tuples = np.load(os.path.join('../maps/', 'willowgarageworld_05res_rrtstar_coords_ori.npy')).T
+        self.path_tuples = np.load(os.path.join('../maps/', 'myhal_newgoal_rrtstar_coords_ori.npy')).T
         offset_x = self.path_tuples[0][0]
         offset_y = self.path_tuples[0][1]
 
@@ -150,6 +151,77 @@ class PathFollower():
         rospy.on_shutdown(self.stop_robot_on_shutdown)
         self.follow_path()
 
+
+    def trajectory_rollout(self, vel, rot_vel, start_point, num_steps = None, timestep = None, stopping_dist = None):
+        # create a blank array for the trajectory start and load in the first node
+        if num_steps == None:
+            num_steps = self.num_substeps
+        if timestep == None:
+            timestep = self.timestep
+        if stopping_dist == None:
+            stopping_dist = self.stopping_dist
+        traj = np.zeros((3, num_steps))
+        traj[:,0] = start_point.flatten()
+        for i in range(1, num_steps):
+            A = np.array([[np.cos(traj[2, i-1]), 0], 
+                        [np.sin(traj[2, i-1]), 0], 
+                        [0, 1]])
+            q_dot = A @ np.array([vel, rot_vel])
+            traj[:,i] = traj[:,i-1] + timestep * q_dot
+            if traj[2,i] > np.pi:
+                traj[2,i] -= 2 * np.pi
+            if traj[2,i] < -np.pi:
+                traj[2,i] += 2 * np.pi
+        return traj[:, 1:]
+    
+
+    def points_to_robot_circle(self, points, scaled_rad):
+        # get the converted points, it's around these points we'll place the circles (or use given ones)
+        # converted_points = self.point_to_cell(points)
+        converted_points = points.reshape((2, 1))
+        # for each of the converted points, find the circle around them
+        rows, cols = [], []
+        for i in range(converted_points.shape[1]):
+            centre = converted_points[0][i], converted_points[1][i]
+            rr, cc = disk(centre, scaled_rad)
+            rows.append(rr)
+            cols.append(cc)
+        # this now holds all potentially occupied points
+        # ** there could be points outside of the 1600x1600 area!
+        included_points = np.vstack((np.concatenate(rows), np.concatenate(cols)))
+        return included_points
+    
+    
+    def collision_check(self, x, y, theta = None, input_map = np.array([]), scaled_rad = None):
+        # if this point on the path goes off the page, we're done
+        if input_map.all() == None or input_map.size == 0:
+            input_map = self.occupancy_map
+            map_shape = self.map_shape
+        else:
+            map_shape = input_map.shape
+
+        if scaled_rad == None:
+            scaled_rad = self.scaled_rad
+        
+        if not (0 <= x <= map_shape[1]-1 and 0 <= y <= map_shape[0]-1): 
+            return True
+        # if any of the surrounding points are off the edge, we're also done
+        included_points = self.points_to_robot_circle(points=np.array([x, y]), scaled_rad=scaled_rad)
+        out_of_range_x = np.any((included_points[0, :] < 0) | (included_points[0, :] >= map_shape[1]-1))
+        out_of_range_y = np.any((included_points[1, :] < 0) | (included_points[1, :] >= map_shape[0]-1))
+        out_of_range = out_of_range_x or out_of_range_y
+        if out_of_range: 
+            return True
+        # if any of the surrounding points are in an obstacle, we're also done
+        for mini_index in range(included_points.shape[1]):
+            test_x, test_y = included_points[:, mini_index].flatten()
+            if input_map[test_y, test_x] == 100: 
+                print(test_x, test_y)
+                return True
+        # only if we make it here is the point safe to add as a next 
+        return False
+    
+
     def follow_path(self):
         while not rospy.is_shutdown():
             # timing for debugging...loop time should be less than 1/CONTROL_RATE
@@ -166,7 +238,7 @@ class PathFollower():
             for i, vel in enumerate(self.all_opts_scaled):
                 lin_vel, rot_vel = vel[0], vel[1]
                 #propogate trajectory forward, assuming perfect control of velocity and no dynamic effects
-                traj = self.path_planner.trajectory_rollout(lin_vel, rot_vel,
+                traj = self.trajectory_rollout(lin_vel, rot_vel,
                                                        start_point=start_pt,
                                                        num_steps = self.horizon_timesteps+1,
                                                        timestep = INTEGRATION_DT,
@@ -187,7 +259,7 @@ class PathFollower():
                 # if collision detected, remove it from valid options
                 for point in path:
                     tmp_path = (self.map_origin[:2] + point[:2]) / self.map_resolution
-                    if self.path_planner.collision_check(x=int(tmp_path[0]), y=int(tmp_path[1]), theta=0,
+                    if self.collision_check(x=int(tmp_path[0]), y=int(tmp_path[1]), theta=0,
                                                 input_map=self.map_np, 
                                                 scaled_rad= COLLISION_RADIUS/self.map_resolution):
                         # valid_opts[i] = -1

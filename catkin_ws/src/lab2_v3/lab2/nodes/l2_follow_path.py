@@ -43,21 +43,21 @@ TEMP_HARDCODE_PATH = [[2, -.5, 0], [2.4, -1, -np.pi/2], [2.45, -3.5, -np.pi/2], 
 
 class PathFollower():
     def __init__(self):
-        # map_filename = "willowgarageworld_05res.png"
-        # map_setings_filename = "willowgarageworld_05res.yaml"
-        # # robot information
-        # goal_pix = np.array([[1250], [1500]])
-        # first_node = Node(np.array([[420],[615],[0]]), -1, 0)
-        # stopping_dist = 0.5 #m
-
-        map_filename = "myhal.png"
-        map_setings_filename = "myhal.yaml"
+        map_filename = "willowgarageworld_05res.png"
+        map_setings_filename = "willowgarageworld_05res.yaml"
         # robot information
-        goal_pix = np.array([[153], [6]])
-        first_node = Node(np.array([[6],[43],[0]]), -1, 0)
-        stopping_dist = 0.2 #m
-        rrt_path = "../maps/myhal_coords.npy"
-        rrt_star_path = "../maps/myhal_rrtstar_coords.npy"
+        goal_pix = np.array([[1250], [1500]])
+        first_node = Node(np.array([[420],[615],[0]]), -1, 0)
+        stopping_dist = 0.5 #m
+
+        # map_filename = "myhal.png"
+        # map_setings_filename = "myhal.yaml"
+        # # robot information
+        # goal_pix = np.array([[153], [6]])
+        # first_node = Node(np.array([[6],[43],[0]]), -1, 0)
+        # stopping_dist = 0.2 #m
+        # rrt_path = "../maps/myhal_coords.npy"
+        # rrt_star_path = "../maps/myhal_rrtstar_coords.npy"
 
         self.path_planner = PathPlanner(map_filename, map_setings_filename, goal_pix, first_node, stopping_dist)
         # time full path
@@ -115,8 +115,8 @@ class PathFollower():
         cur_dir = os.path.dirname(os.path.realpath(__file__))
 
         # to use the temp hardcoded paths above, switch the comment on the following two lines
-        # self.path_tuples = np.load(os.path.join('../maps/', 'willowgarageworld_05res_rrtstar_coords_ori.npy')).T
-        self.path_tuples = np.load(os.path.join('../maps/', 'myhal_newgoal_rrtstar_coords_ori.npy')).T
+        self.path_tuples = np.load(os.path.join('../maps/', 'willowgarageworld_05res_coords_ori.npy')).T
+        # self.path_tuples = np.load(os.path.join('../maps/', 'myhal_newgoal_coords_ori.npy')).T
         offset_x = self.path_tuples[0][0]
         offset_y = self.path_tuples[0][1]
 

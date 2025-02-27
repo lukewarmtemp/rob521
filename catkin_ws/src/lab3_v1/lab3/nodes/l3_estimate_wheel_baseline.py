@@ -10,7 +10,7 @@ from geometry_msgs.msg import Twist
 INT32_MAX = 2**31
 NUM_ROTATIONS = 3 
 TICKS_PER_ROTATION = 4096
-WHEEL_RADIUS = 0.066 / 2 #In meters
+WHEEL_RADIUS = 0.066 / 2 # In meters
 
 
 class wheelBaselineEstimator():
@@ -74,13 +74,24 @@ class wheelBaselineEstimator():
         elif self.isMoving is True and np.isclose(msg.angular.z, 0):
             self.isMoving = False #Set the state to stopped
 
-            # # YOUR CODE HERE!!!
-            # Calculate the radius of the wheel based on encoder measurements
+            #################################################
+            # OUR CODE GOES HERE - Calculate the distance between the wheels based on encoder measurements
 
-            # separation = ##
-            # print('Calibrated Separation: {} m'.format(separation))
+            # precompute some constants
+            average_encoder_ticks = (self.del_left_encoder + self.del_right_encoder) / 2.0
+            total_rotation = 2 * np.pi * NUM_ROTATIONS # radians
+            wheel_circumference = 2 * np.pi * WHEEL_RADIUS
 
-            #Reset the robot and calibration routine
+            # in case no ticks counted, no baseline to calibrate
+            if average_encoder_ticks == 0: separation = -1; print("didn't see movement! no calibration done...")
+            else:
+                number_of_rotations = average_encoder_ticks / TICKS_PER_ROTATION
+                separation = (2 * wheel_circumference * number_of_rotations) / total_rotation
+                print('Calibrated Separation: {:.3f} m'.format(separation))
+
+            #################################################
+
+            # Reset the robot and calibration routine
             self.lock.acquire()
             self.left_encoder_prev = None
             self.right_encoder_prev = None

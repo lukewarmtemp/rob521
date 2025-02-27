@@ -81,13 +81,29 @@ class WheelOdom:
             # Update your odom estimates with the latest encoder measurements and populate the relevant area
             # of self.pose and self.twist with estimated position, heading and velocity
 
-            # self.pose.position.x = xx
-            # self.pose.position.y = xx
-            # self.pose.orientation = xx
-
-            # self.twist.linear.x = mu_dot[0].item()
-            # self.twist.linear.y = mu_dot[1].item()
-            # self.twist.angular.z = mu_dot[2].item()
+            #encoder value to change in wheel encoder value
+            delta_enc_l = le - self.last_enc_l
+            delta_enc_r = re - self.last_enc_r
+            # conver encoder value to change in wheel angle
+            delta_theta_l = delta_enc_l * RAD_PER_TICK
+            delta_theta_r = delta_enc_r * RAD_PER_TICK
+            # unicycle robot model converting change in wheel angle to change in robot pose
+            delta_theta = np.array([delta_theta_l, delta_theta_r])
+            A = np.array([[WHEEL_RADIUS/2, WHEEL_RADIUS/2], [1/2*WHEEL_RADIUS/BASELINE, 1/2*-WHEEL_RADIUS/BASELINE]])
+            delta_dist = np.dot(A, delta_theta)
+            #rotate to world_frame
+            rotation_matrix = np.array([[np.cos(self.pose.orientation.z), 0],
+                                          [np.sin(self.pose.orientation.z), 0],
+                                          [0, 1]])
+            delta_pose = np.dot(rotation_matrix, delta_dist)
+            
+            # update pose
+            self.pose.position.x += delta_pose[0]
+            self.pose.position.y += delta_pose[2]
+            self.pose.orientation.z += delta_pose[3]
+            # update twist
+            self.twist.linear.x = delta_dist[0] / (sensor_state_msg.header.stamp - self.last_time).to_sec()
+            self.twist.angular.z = delta_dist[1] / (sensor_state_msg.header.stamp - self.last_time).to_sec()
 
             # publish the updates as a topic and in the tf tree
             current_time = rospy.Time.now()

@@ -95,17 +95,18 @@ class OccupancyGripMap:
         # YOUR CODE HERE!!! Loop through each measurement in scan_msg to get the correct angle and
         # x_start and y_start to send to your ray_trace_update function.
 
-        angles = np.linspace(scan_msg.angle_min, scan_msg.angle_max, scan_msg.angle_increment)
-        ranges = scan_msg.ranges
-        for i, range in enumerate(ranges):
-            if range > scan_msg.range_max and range < scan_msg.range_min:
+        for i in range(0, len(scan_msg.ranges), SCAN_DOWNSAMPLE):
+            range_val = scan_msg.ranges[i]
+            if range_val < scan_msg.range_min or range_val > scan_msg.range_max:
                 continue
+
+            angle = odom_map[2] + scan_msg.angle_min + i * scan_msg.angle_increment
+
             x_start = odom_map[0] / CELL_SIZE
             y_start = odom_map[1] / CELL_SIZE
-            angle = angles[i]
-            self.np_map, self.log_odds = self.ray_trace_update(self.np_map, self.log_odds, x_start, y_start, angle, range)
-            
-        # publish the message
+
+            self.np_map, self.log_odds = self.ray_trace_update(self.np_map, self.log_odds, x_start, y_start, angle, range_val)
+
         self.map_msg.info.map_load_time = rospy.Time.now()
         self.map_msg.data = self.np_map.flatten()
         self.map_pub.publish(self.map_msg)
@@ -126,23 +127,44 @@ class OccupancyGripMap:
         # ray_trace and the equations from class. Your numpy map must be an array of int8s with 0 to 100 representing
         # probability of occupancy, and -1 representing unknown.
 
-        ray_line = ray_trace(x_start, y_start, x_start + range_mes * np.cos(angle), y_start + range_mes * np.sin(angle))
-        log_odds[x_start, y_start] += BETA
-        for x, y in zip(ray_line[0], ray_line[1]):
-            if x < 0 or y < 0 or x >= map.shape[0] or y >= map.shape[1]:
-                continue
-            if range_mes > np.sqrt((x - x_start) ** 2 + (y - y_start) ** 2):
-                log_odds[x, y] += ALPHA
-            else:
-                log_odds[x, y] -= BETA 
+        x_end = x_start + (range_mes / CELL_SIZE) * np.cos(angle)
+        y_end = y_start + (range_mes / CELL_SIZE) * np.sin(angle)
 
-        for x, y in zip(ray_line[0], ray_line[1]):
-            map[x, y] = 100 - self.log_odds_to_probability(log_odds[x, y]) * 100
+        ray_line = ray_trace(
+            int(np.round(x_start)),
+            int(np.round(y_start)),
+            int(np.round(x_end)),
+            int(np.round(y_end))
+        )
+        
+        for i in range(len(ray_line[0]) - NUM_PTS_OBSTACLE):
+            x = ray_line[0][i]
+            y = ray_line[1][i]
+            
+            if x < 0 or y < 0 or x >= map.shape[1] or y >= map.shape[0]:
+                continue
+
+            log_odds[y, x] -= BETA
+            map[y, x] = self.log_odds_to_probability(log_odds[y, x]) * 100
+        
+        for i in range(-NUM_PTS_OBSTACLE, 0):
+            x = ray_line[0][i]
+            y = ray_line[1][i]
+            
+            if x < 0 or y < 0 or x >= map.shape[1] or y >= map.shape[0]:
+                continue
+
+            log_odds[y, x] += ALPHA
+            map[y, x] = self.log_odds_to_probability(log_odds[y, x]) * 100
         
         return map, log_odds
 
     def log_odds_to_probability(self, values):
-        # print(values)
+        values = np.clip(values, -100, 100)
+        if values > 100:
+            return 1.0
+        elif values < -100:
+            return 0.0
         return np.exp(values) / (1 + np.exp(values))
 
 

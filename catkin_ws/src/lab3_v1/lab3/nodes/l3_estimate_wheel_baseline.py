@@ -8,9 +8,9 @@ from std_msgs.msg import Empty
 from geometry_msgs.msg import Twist
 
 INT32_MAX = 2**31
-NUM_ROTATIONS = 3 
+NUM_ROTATIONS = 3
 TICKS_PER_ROTATION = 4096
-WHEEL_RADIUS = 0.066 / 2 # In meters
+WHEEL_RADIUS = 0.031 # In meters
 
 
 class wheelBaselineEstimator():
@@ -78,13 +78,17 @@ class wheelBaselineEstimator():
             # OUR CODE GOES HERE - Calculate the distance between the wheels based on encoder measurements
 
             # precompute some constants
-            average_encoder_ticks = (self.del_left_encoder + self.del_right_encoder) / 2.0
+            average_encoder_ticks = (abs(self.del_left_encoder)+ abs(self.del_right_encoder)) / 2.0
+            # print('left encoder ticks: ' + str(self.del_left_encoder))
+            # print('right encoder ticks: ' + str(self.del_right_encoder))
             total_rotation = 2 * np.pi * NUM_ROTATIONS # radians
             wheel_circumference = 2 * np.pi * WHEEL_RADIUS
 
             # in case no ticks counted, no baseline to calibrate
             if average_encoder_ticks == 0: separation = -1; print("didn't see movement! no calibration done...")
             else:
+                # print('avg encoder ticks: ' + str(average_encoder_ticks))
+                # print('wheel circum: ' + str(wheel_circumference))
                 number_of_rotations = average_encoder_ticks / TICKS_PER_ROTATION
                 separation = (2 * wheel_circumference * number_of_rotations) / total_rotation
                 print('Calibrated Separation: {:.3f} m'.format(separation))

@@ -20,8 +20,8 @@ from utils import convert_pose_to_tf, euler_from_ros_quat, ros_quat_from_euler
 
 ENC_TICKS = 4096
 RAD_PER_TICK = 0.001533981
-WHEEL_RADIUS = .066 / 2
-BASELINE = .287 / 2
+WHEEL_RADIUS = .031
+BASELINE = .305 / 2
 
 
 class WheelOdom:
@@ -84,6 +84,9 @@ class WheelOdom:
             #encoder value to change in wheel encoder value
             delta_enc_l = le - self.last_enc_l
             delta_enc_r = re - self.last_enc_r
+
+            self.last_enc_l = le
+            self.last_enc_r = re
             # conver encoder value to change in wheel angle
             delta_theta_l = delta_enc_l * RAD_PER_TICK
             delta_theta_r = delta_enc_r * RAD_PER_TICK
@@ -99,11 +102,15 @@ class WheelOdom:
             
             # update pose
             self.pose.position.x += delta_pose[0]
-            self.pose.position.y += delta_pose[2]
-            self.pose.orientation.z += delta_pose[3]
+            self.pose.position.y += delta_pose[1]
+            self.pose.orientation.z -= delta_pose[2]
+            if self.pose.orientation.z > np.pi:
+                self.pose.orientation.z -= 2*np.pi
+            elif self.pose.orientation.z < -np.pi:
+                self.pose.orientation.z += 2*np.pi
             # update twist
             self.twist.linear.x = delta_dist[0] / (sensor_state_msg.header.stamp - self.last_time).to_sec()
-            self.twist.angular.z = delta_dist[1] / (sensor_state_msg.header.stamp - self.last_time).to_sec()
+            self.twist.angular.z = -1 * delta_dist[1] / (sensor_state_msg.header.stamp - self.last_time).to_sec()
 
             # publish the updates as a topic and in the tf tree
             current_time = rospy.Time.now()
@@ -117,20 +124,22 @@ class WheelOdom:
             self.wheel_odom_pub.publish(self.wheel_odom)
 
             self.bag.write('odom_est', self.wheel_odom)
+            self.bag.write('odom_onboard', self.odom)
 
             # for testing against actual odom
-            # print("Wheel Odom: x: %2.3f, y: %2.3f, t: %2.3f" % (
-            #     self.pose.position.x, self.pose.position.y, mu[2].item()
-            # ))
-            # print("Turtlebot3 Odom: x: %2.3f, y: %2.3f, t: %2.3f" % (
-            #     self.odom.pose.pose.position.x, self.odom.pose.pose.position.y,
-            #     euler_from_ros_quat(self.odom.pose.pose.orientation)[2]
-            # ))
+            print("Wheel Odom: x: %2.3f, y: %2.3f, t: %2.3f" % (
+                # self.pose.position.x, self.pose.position.y, mu[2].item()
+                self.pose.position.x, self.pose.position.y, self.pose.orientation.z
+            ))
+            print("Turtlebot3 Odom: x: %2.3f, y: %2.3f, t: %2.3f" % (
+                self.odom.pose.pose.position.x, self.odom.pose.pose.position.y,
+                euler_from_ros_quat(self.odom.pose.pose.orientation)[2]
+            ))
 
     def odom_cb(self, odom_msg):
         # get odom from turtlebot3 packages
         self.odom = odom_msg
-        self.bag.write('odom_onboard', self.odom)
+        
 
     def plot(self, bag):
         data = {"odom_est":{"time":[], "data":[]}, 
